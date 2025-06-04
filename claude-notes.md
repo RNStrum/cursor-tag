@@ -38,6 +38,7 @@ Working through the project:init-app command to help user set up their new appli
 - 4e5c8e4: test: verify servers running and authentication working, update implementation notes
 - 220687f: fix: remove authentication requirement and optimize performance with throttled updates
 - d079b36: fix: improve multiplayer join with real-time updates and better player state tracking
+- e145371: perf: optimize gameplay performance by reducing update frequency and unnecessary database calls
 
 ### Implementation Summary:
 ✅ **Backend (Convex):**
@@ -82,11 +83,17 @@ Working through the project:init-app command to help user set up their new appli
    - Smoother mouse movement
    - Better real-time synchronization
 
-3. **Multiplayer Join Fix (Latest):**
+3. **Multiplayer Join Fix:**
    - Added real-time query updates (100ms refetch interval)
    - Improved player state tracking and validation
    - Fixed join form visibility logic
    - Better handling of game state transitions from "waiting" to "playing"
+
+4. **Performance Optimization (Latest):**
+   - Reduced query refetch interval from 100ms to 1 second
+   - Increased mouse update throttle from 16ms to 50ms (60 FPS → 20 FPS)
+   - Added position change detection (only update DB if moved >5 pixels)
+   - Significantly reduced unnecessary database calls
 
 ## Important Notes:
 - Template includes: React + Vite + TanStack Router (frontend), Convex (backend), Clerk (auth)

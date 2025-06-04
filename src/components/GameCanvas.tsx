@@ -85,9 +85,9 @@ export function GameCanvas({
     // Only update if position changed significantly (reduce unnecessary DB calls)
     const dx = constrainedPos.x - lastPositionRef.current.x;
     const dy = constrainedPos.y - lastPositionRef.current.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
+    const moveDistance = Math.sqrt(dx * dx + dy * dy);
     
-    if (distance > 5) { // Only update if moved more than 5 pixels
+    if (moveDistance > 5) { // Only update if moved more than 5 pixels
       lastPositionRef.current = constrainedPos;
       
       // Update position in database
