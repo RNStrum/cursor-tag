@@ -123,7 +123,7 @@ function GameView({ gameId, initialPlayerId }: { gameId: Id<'games'>, initialPla
         gameRadius={game.gameRadius}
         players={game.players}
         gameStatus={game.status}
-        currentPlayerId={activePlayerId}
+        currentPlayerId={activePlayerId || undefined}
       />
 
       {game.status === 'waiting' && game.players.length < 2 && !isPlayerInGame && (
