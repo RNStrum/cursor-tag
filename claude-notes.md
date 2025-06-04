@@ -21,9 +21,19 @@ Working through the project:init-app command to help user set up their new appli
 - ✅ Starting claude-notes.md documentation
 - ✅ Gathered requirements from user
 
-### Next Steps:
-1. Document responses and remove template instructions from CLAUDE.md
-2. Plan and implement MVP
+### MVP Implementation Plan:
+1. ✅ Set up Convex schema for games and players  
+2. Create game canvas with basic circle rendering
+3. Implement mouse movement and boundary constraints
+4. Add collision detection
+5. Build multiplayer synchronization
+6. Add timer and game flow
+7. Polish UX and responsive design
+
+### Current Status: Basic game implementation complete, ready for testing
+
+### Session Commits:
+- f2f9cfb: init: document 2D tag game requirements and remove template instructions
 
 ## Important Notes:
 - Template includes: React + Vite + TanStack Router (frontend), Convex (backend), Clerk (auth)
