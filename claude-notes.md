@@ -35,6 +35,8 @@ Working through the project:init-app command to help user set up their new appli
 ### Session Commits:
 - f2f9cfb: init: document 2D tag game requirements and remove template instructions
 - eaa3184: feat: implement core 2D tag game with Convex backend, game canvas, and multiplayer lobby
+- 4e5c8e4: test: verify servers running and authentication working, update implementation notes
+- 220687f: fix: remove authentication requirement and optimize performance with throttled updates
 
 ### Implementation Summary:
 ✅ **Backend (Convex):**
@@ -61,9 +63,23 @@ Working through the project:init-app command to help user set up their new appli
 ### Testing Status:
 - Development servers launched successfully
 - Frontend loading correctly at localhost:5173
-- Authentication flow working (Clerk integration)
+- ✅ Authentication removed - no sign-in required
+- ✅ Performance optimized with 60 FPS throttling
 - TypeScript compilation successful
 - Ready for user testing
+
+### Recent Fixes Applied:
+1. **Removed Authentication Requirement:**
+   - Games now work without Clerk sign-in
+   - Anonymous users with auto-generated IDs
+   - Optional player name input
+   - Simplified game joining flow
+
+2. **Performance Optimizations:**
+   - Throttled position updates to 60 FPS (16ms)
+   - Reduced database calls
+   - Smoother mouse movement
+   - Better real-time synchronization
 
 ## Important Notes:
 - Template includes: React + Vite + TanStack Router (frontend), Convex (backend), Clerk (auth)
