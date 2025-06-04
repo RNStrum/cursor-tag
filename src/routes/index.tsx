@@ -1,17 +1,16 @@
-import { SignInButton } from "@clerk/clerk-react";
 import { convexQuery } from "@convex-dev/react-query";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Authenticated, Unauthenticated, useMutation } from "convex/react";
+import { useMutation } from "convex/react";
 import { Target, Play, Users } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { useState } from "react";
 
-const myGamesQueryOptions = convexQuery(api.games.getMyGames, {});
+const recentGamesQueryOptions = convexQuery(api.games.getRecentGames, {});
 
 export const Route = createFileRoute("/")({
   loader: async ({ context: { queryClient } }) =>
-    await queryClient.ensureQueryData(myGamesQueryOptions),
+    await queryClient.ensureQueryData(recentGamesQueryOptions),
   component: HomePage,
 });
 
@@ -28,40 +27,31 @@ function HomePage() {
         </p>
       </div>
 
-      <Unauthenticated>
-        <div className="text-center">
-          <p className="text-lg mb-6">Sign in to start playing!</p>
-          <div className="not-prose">
-            <SignInButton mode="modal">
-              <button className="btn btn-primary btn-lg">
-                <Play className="w-5 h-5 mr-2" />
-                Get Started
-              </button>
-            </SignInButton>
-          </div>
-        </div>
-      </Unauthenticated>
-
-      <Authenticated>
-        <GameLobby />
-      </Authenticated>
+      <GameLobby />
     </div>
   );
 }
 
 function GameLobby() {
-  const { data: myGames } = useSuspenseQuery(myGamesQueryOptions);
+  const { data: recentGames } = useSuspenseQuery(recentGamesQueryOptions);
   const createGame = useMutation(api.games.createGame);
   const joinGame = useMutation(api.games.joinGame);
   const navigate = useNavigate();
   const [isCreating, setIsCreating] = useState(false);
   const [gameIdToJoin, setGameIdToJoin] = useState("");
+  const [playerName, setPlayerName] = useState("");
 
   const handleCreateGame = async () => {
     setIsCreating(true);
     try {
-      const gameId = await createGame({ gameRadius: 250 });
-      navigate({ to: `/game/${gameId}` });
+      const result = await createGame({ 
+        gameRadius: 250, 
+        playerName: playerName.trim() || undefined 
+      });
+      navigate({ 
+        to: `/game/${result.gameId}`,
+        search: { playerId: result.playerId }
+      });
     } catch (error) {
       console.error("Failed to create game:", error);
     } finally {
@@ -73,8 +63,14 @@ function GameLobby() {
     if (!gameIdToJoin.trim()) return;
     
     try {
-      await joinGame({ gameId: gameIdToJoin as any });
-      navigate({ to: `/game/${gameIdToJoin}` });
+      const playerId = await joinGame({ 
+        gameId: gameIdToJoin as any, 
+        playerName: playerName.trim() || undefined 
+      });
+      navigate({ 
+        to: `/game/${gameIdToJoin}`,
+        search: { playerId }
+      });
     } catch (error) {
       console.error("Failed to join game:", error);
       alert("Failed to join game. Make sure the game ID is correct and the game is waiting for players.");
@@ -83,6 +79,21 @@ function GameLobby() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-8">
+      {/* Player Name Input */}
+      <div className="card bg-base-100 shadow-lg">
+        <div className="card-body">
+          <h2 className="card-title justify-center text-xl">Your Name (Optional)</h2>
+          <input
+            type="text"
+            placeholder="Enter your name"
+            className="input input-bordered w-full"
+            value={playerName}
+            onChange={(e) => setPlayerName(e.target.value)}
+            maxLength={20}
+          />
+        </div>
+      </div>
+
       {/* Create Game Section */}
       <div className="card bg-base-100 shadow-lg">
         <div className="card-body text-center">
@@ -139,32 +150,32 @@ function GameLobby() {
         </div>
       </div>
 
-      {/* My Games Section */}
-      {myGames.length > 0 && (
+      {/* Recent Games Section */}
+      {recentGames.length > 0 && (
         <div className="card bg-base-100 shadow-lg">
           <div className="card-body">
-            <h2 className="card-title text-2xl mb-4">My Games</h2>
+            <h2 className="card-title text-2xl mb-4">Recent Games</h2>
             <div className="space-y-2">
-              {myGames.map((game) => (
+              {recentGames.slice(0, 5).map((game) => (
                 <div 
-                  key={game?._id} 
+                  key={game._id} 
                   className="flex justify-between items-center p-3 bg-base-200 rounded-lg"
                 >
                   <div>
-                    <span className="font-medium">Game {game?._id}</span>
+                    <span className="font-medium">Game {game._id.slice(-6)}</span>
                     <span className={`ml-2 badge ${
-                      game?.status === 'waiting' ? 'badge-warning' :
-                      game?.status === 'playing' ? 'badge-success' :
+                      game.status === 'waiting' ? 'badge-warning' :
+                      game.status === 'playing' ? 'badge-success' :
                       'badge-neutral'
                     }`}>
-                      {game?.status}
+                      {game.status}
                     </span>
                   </div>
                   <button 
                     className="btn btn-sm btn-outline"
-                    onClick={() => navigate({ to: `/game/${game?._id}` })}
+                    onClick={() => navigate({ to: `/game/${game._id}` })}
                   >
-                    View
+                    {game.status === 'waiting' ? 'Join' : 'View'}
                   </button>
                 </div>
               ))}

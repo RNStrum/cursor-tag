@@ -15,7 +15,7 @@ interface GameCanvasProps {
   gameRadius: number;
   players: Player[];
   gameStatus: 'waiting' | 'playing' | 'finished';
-  currentUserId?: string;
+  currentPlayerId?: string;
 }
 
 export function GameCanvas({ 
@@ -23,15 +23,19 @@ export function GameCanvas({
   gameRadius, 
   players, 
   gameStatus,
-  currentUserId 
+  currentPlayerId 
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const updatePosition = useMutation(api.games.updatePosition);
+  const lastUpdateRef = useRef(0);
   
   const canvasSize = 600;
   const scale = canvasSize / (gameRadius * 2);
   const playerRadius = 20;
+  
+  // Throttle updates to 60 FPS max (16ms)
+  const THROTTLE_MS = 16;
 
   // Convert game coordinates to canvas coordinates
   const gameToCanvas = useCallback((gameX: number, gameY: number) => {
@@ -49,9 +53,13 @@ export function GameCanvas({
     };
   }, [gameRadius, scale]);
 
-  // Handle mouse movement
+  // Handle mouse movement with throttling
   const handleMouseMove = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (gameStatus !== 'playing') return;
+    if (gameStatus !== 'playing' || !currentPlayerId) return;
+
+    const now = Date.now();
+    if (now - lastUpdateRef.current < THROTTLE_MS) return;
+    lastUpdateRef.current = now;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -73,9 +81,13 @@ export function GameCanvas({
 
     setMousePosition(constrainedPos);
     
-    // Update position in database (throttled)
-    updatePosition({ gameId, position: constrainedPos });
-  }, [gameStatus, gameId, gameRadius, canvasToGame, updatePosition]);
+    // Update position in database
+    updatePosition({ 
+      gameId, 
+      playerId: currentPlayerId as Id<'players'>, 
+      position: constrainedPos 
+    });
+  }, [gameStatus, gameId, gameRadius, canvasToGame, updatePosition, currentPlayerId, THROTTLE_MS]);
 
   // Render the game
   useEffect(() => {

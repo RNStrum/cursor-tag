@@ -6,24 +6,16 @@ import { Doc, Id } from "./_generated/dataModel";
 export const createGame = mutation({
   args: {
     gameRadius: v.number(),
+    playerName: v.optional(v.string()),
   },
-  handler: async (ctx, { gameRadius }) => {
-    const user = await ctx.auth.getUserIdentity();
-    if (!user) throw new ConvexError("Must be authenticated");
-
-    // Get or create user document
-    let userDoc = await ctx.db
-      .query("users")
-      .withIndex("by_clerkId", (q) => q.eq("clerkId", user.subject))
-      .unique();
-
-    if (!userDoc) {
-      const userId = await ctx.db.insert("users", {
-        clerkId: user.subject,
-        name: user.name || "Anonymous",
-      });
-      userDoc = (await ctx.db.get(userId))!;
-    }
+  handler: async (ctx, { gameRadius, playerName }) => {
+    // Create anonymous user
+    const userId = await ctx.db.insert("users", {
+      clerkId: `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name: playerName || "Player 1",
+    });
+    
+    const userDoc = (await ctx.db.get(userId))!;
 
     // Create the game
     const gameId = await ctx.db.insert("games", {
@@ -32,7 +24,7 @@ export const createGame = mutation({
     });
 
     // Assign runner role to first player (starts in center)
-    await ctx.db.insert("players", {
+    const playerId = await ctx.db.insert("players", {
       gameId,
       userId: userDoc!._id,
       role: "runner",
@@ -41,7 +33,7 @@ export const createGame = mutation({
       joinedAt: Date.now(),
     });
 
-    return gameId;
+    return { gameId, playerId };
   },
 });
 
@@ -49,28 +41,20 @@ export const createGame = mutation({
 export const joinGame = mutation({
   args: {
     gameId: v.id("games"),
+    playerName: v.optional(v.string()),
   },
-  handler: async (ctx, { gameId }) => {
-    const user = await ctx.auth.getUserIdentity();
-    if (!user) throw new ConvexError("Must be authenticated");
-
+  handler: async (ctx, { gameId, playerName }) => {
     const game = await ctx.db.get(gameId);
     if (!game) throw new ConvexError("Game not found");
     if (game.status !== "waiting") throw new ConvexError("Game already started");
 
-    // Get or create user document
-    let userDoc = await ctx.db
-      .query("users")
-      .withIndex("by_clerkId", (q) => q.eq("clerkId", user.subject))
-      .unique();
-
-    if (!userDoc) {
-      const userId = await ctx.db.insert("users", {
-        clerkId: user.subject,
-        name: user.name || "Anonymous",
-      });
-      userDoc = (await ctx.db.get(userId))!;
-    }
+    // Create anonymous user
+    const userId = await ctx.db.insert("users", {
+      clerkId: `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name: playerName || "Player 2",
+    });
+    
+    const userDoc = (await ctx.db.get(userId))!;
 
     // Check if already in game
     const existingPlayer = await ctx.db
@@ -97,7 +81,7 @@ export const joinGame = mutation({
     };
 
     // Join as "it" player
-    await ctx.db.insert("players", {
+    const playerId = await ctx.db.insert("players", {
       gameId,
       userId: userDoc!._id,
       role: "it",
@@ -112,7 +96,7 @@ export const joinGame = mutation({
       startTime: Date.now(),
     });
 
-    return gameId;
+    return playerId;
   },
 });
 
@@ -120,23 +104,11 @@ export const joinGame = mutation({
 export const updatePosition = mutation({
   args: {
     gameId: v.id("games"),
+    playerId: v.id("players"),
     position: v.object({ x: v.number(), y: v.number() }),
   },
-  handler: async (ctx, { gameId, position }) => {
-    const user = await ctx.auth.getUserIdentity();
-    if (!user) throw new ConvexError("Must be authenticated");
-
-    const userDoc = await ctx.db
-      .query("users")
-      .withIndex("by_clerkId", (q) => q.eq("clerkId", user.subject))
-      .unique();
-
-    if (!userDoc) throw new ConvexError("User not found");
-
-    const player = await ctx.db
-      .query("players")
-      .withIndex("by_game_user", (q) => q.eq("gameId", gameId).eq("userId", userDoc._id))
-      .unique();
+  handler: async (ctx, { gameId, playerId, position }) => {
+    const player = await ctx.db.get(playerId);
 
     if (!player) throw new ConvexError("Player not in game");
 
@@ -210,32 +182,15 @@ export const getGame = query({
   },
 });
 
-// Get current user's active games
-export const getMyGames = query({
+// Get recent games (last 10)
+export const getRecentGames = query({
   args: {},
   handler: async (ctx) => {
-    const user = await ctx.auth.getUserIdentity();
-    if (!user) return [];
+    const games = await ctx.db
+      .query("games")
+      .order("desc")
+      .take(10);
 
-    const userDoc = await ctx.db
-      .query("users")
-      .withIndex("by_clerkId", (q) => q.eq("clerkId", user.subject))
-      .unique();
-
-    if (!userDoc) return [];
-
-    const myPlayers = await ctx.db
-      .query("players")
-      .withIndex("by_user", (q) => q.eq("userId", userDoc._id))
-      .collect();
-
-    const games = await Promise.all(
-      myPlayers.map(async (player) => {
-        const game = await ctx.db.get(player.gameId);
-        return game;
-      })
-    );
-
-    return games.filter(Boolean);
+    return games;
   },
 });

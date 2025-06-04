@@ -1,42 +1,37 @@
-import { createFileRoute, useParams } from '@tanstack/react-router';
+import { createFileRoute, useParams, useSearch } from '@tanstack/react-router';
 import { convexQuery } from '@convex-dev/react-query';
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { Authenticated, Unauthenticated } from 'convex/react';
-import { SignInButton } from '@clerk/clerk-react';
 import { api } from '../../convex/_generated/api';
 import { GameCanvas } from '../components/GameCanvas';
 import { Id } from '../../convex/_generated/dataModel';
 import { useEffect, useState } from 'react';
+import { useMutation } from 'convex/react';
 
 export const Route = createFileRoute('/game/$gameId')({
+  validateSearch: (search: Record<string, unknown>) => ({
+    playerId: (search.playerId as string) || undefined,
+  }),
   component: GamePage,
 });
 
 function GamePage() {
   const { gameId } = useParams({ from: '/game/$gameId' });
+  const { playerId } = useSearch({ from: '/game/$gameId' });
   
   return (
     <div className="container mx-auto px-4 py-8">
-      <Unauthenticated>
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Sign in to play!</h1>
-          <SignInButton mode="modal">
-            <button className="btn btn-primary btn-lg">Sign In</button>
-          </SignInButton>
-        </div>
-      </Unauthenticated>
-
-      <Authenticated>
-        <GameView gameId={gameId as Id<'games'>} />
-      </Authenticated>
+      <GameView gameId={gameId as Id<'games'>} initialPlayerId={playerId} />
     </div>
   );
 }
 
-function GameView({ gameId }: { gameId: Id<'games'> }) {
+function GameView({ gameId, initialPlayerId }: { gameId: Id<'games'>, initialPlayerId?: string }) {
   const gameQueryOptions = convexQuery(api.games.getGame, { gameId });
   const { data: game } = useSuspenseQuery(gameQueryOptions);
   const [gameTime, setGameTime] = useState(0);
+  const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(initialPlayerId || null);
+  const [playerName, setPlayerName] = useState("");
+  const joinGame = useMutation(api.games.joinGame);
 
   // Timer effect
   useEffect(() => {
@@ -48,6 +43,19 @@ function GameView({ gameId }: { gameId: Id<'games'> }) {
 
     return () => clearInterval(interval);
   }, [game?.status, game?.startTime]);
+
+  const handleJoinGame = async () => {
+    try {
+      const playerId = await joinGame({ 
+        gameId, 
+        playerName: playerName.trim() || undefined 
+      });
+      setCurrentPlayerId(playerId);
+    } catch (error) {
+      console.error("Failed to join game:", error);
+      alert("Failed to join game. The game might be full or already started.");
+    }
+  };
 
   if (!game) {
     return (
@@ -98,7 +106,30 @@ function GameView({ gameId }: { gameId: Id<'games'> }) {
         gameRadius={game.gameRadius}
         players={game.players}
         gameStatus={game.status}
+        currentPlayerId={currentPlayerId || undefined}
       />
+
+      {game.status === 'waiting' && game.players.length < 2 && !currentPlayerId && (
+        <div className="text-center space-y-4">
+          <h3 className="text-xl font-semibold">Join this game</h3>
+          <div className="max-w-sm mx-auto space-y-2">
+            <input
+              type="text"
+              placeholder="Your name (optional)"
+              className="input input-bordered w-full"
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
+              maxLength={20}
+            />
+            <button 
+              className="btn btn-primary w-full"
+              onClick={handleJoinGame}
+            >
+              Join Game
+            </button>
+          </div>
+        </div>
+      )}
 
       {game.status === 'waiting' && game.players.length < 2 && (
         <div className="text-center">
