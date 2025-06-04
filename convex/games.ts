@@ -181,6 +181,56 @@ export const getGame = query({
   },
 });
 
+// Restart a finished game
+export const restartGame = mutation({
+  args: {
+    gameId: v.id("games"),
+  },
+  handler: async (ctx, { gameId }) => {
+    const game = await ctx.db.get(gameId);
+    if (!game) throw new ConvexError("Game not found");
+    if (game.status !== "finished") throw new ConvexError("Game is not finished");
+
+    // Get all players in the game
+    const players = await ctx.db
+      .query("players")
+      .withIndex("by_game", (q) => q.eq("gameId", gameId))
+      .collect();
+
+    if (players.length !== 2) throw new ConvexError("Need exactly 2 players to restart");
+
+    // Reset player positions
+    for (const player of players) {
+      if (player.role === "runner") {
+        // Runner goes back to center
+        await ctx.db.patch(player._id, {
+          position: { x: 0, y: 0 },
+        });
+      } else {
+        // "It" player gets new random edge position
+        const angle = Math.random() * 2 * Math.PI;
+        const edgePosition = {
+          x: game.gameRadius * Math.cos(angle),
+          y: game.gameRadius * Math.sin(angle),
+        };
+        await ctx.db.patch(player._id, {
+          position: edgePosition,
+        });
+      }
+    }
+
+    // Reset game state
+    await ctx.db.patch(gameId, {
+      status: "playing",
+      startTime: Date.now(),
+      endTime: undefined,
+      winnerId: undefined,
+    });
+
+    return gameId;
+  },
+});
+
 // Get recent games (last 10)
 export const getRecentGames = query({
   args: {},

@@ -34,8 +34,9 @@ export function GameCanvas({
   const scale = canvasSize / (gameRadius * 2);
   const playerRadius = 20;
   
-  // Throttle updates to 20 FPS (50ms) to reduce lag
-  const THROTTLE_MS = 50;
+  // Performance and gameplay settings
+  const THROTTLE_MS = 100; // Reduce to 10 FPS for less lag
+  const MAX_SPEED = 3; // Maximum pixels per frame movement
 
   // Convert game coordinates to canvas coordinates
   const gameToCanvas = useCallback((gameX: number, gameY: number) => {
@@ -53,13 +54,9 @@ export function GameCanvas({
     };
   }, [gameRadius, scale]);
 
-  // Handle mouse movement with throttling
+  // Handle mouse movement with throttling and speed limiting
   const handleMouseMove = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
     if (gameStatus !== 'playing' || !currentPlayerId) return;
-
-    const now = Date.now();
-    if (now - lastUpdateRef.current < THROTTLE_MS) return;
-    lastUpdateRef.current = now;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -68,23 +65,35 @@ export function GameCanvas({
     const canvasX = event.clientX - rect.left;
     const canvasY = event.clientY - rect.top;
     
-    const gamePos = canvasToGame(canvasX, canvasY);
+    const targetGamePos = canvasToGame(canvasX, canvasY);
+    
+    // Apply speed limiting
+    const dx = targetGamePos.x - lastPositionRef.current.x;
+    const dy = targetGamePos.y - lastPositionRef.current.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    let newPos = targetGamePos;
+    if (distance > MAX_SPEED) {
+      // Limit movement to MAX_SPEED pixels
+      newPos = {
+        x: lastPositionRef.current.x + (dx / distance) * MAX_SPEED,
+        y: lastPositionRef.current.y + (dy / distance) * MAX_SPEED,
+      };
+    }
     
     // Constrain to circle boundary
-    const distance = Math.sqrt(gamePos.x * gamePos.x + gamePos.y * gamePos.y);
-    const constrainedPos = distance > gameRadius 
+    const boundaryDistance = Math.sqrt(newPos.x * newPos.x + newPos.y * newPos.y);
+    const constrainedPos = boundaryDistance > gameRadius 
       ? {
-          x: (gamePos.x / distance) * gameRadius,
-          y: (gamePos.y / distance) * gameRadius,
+          x: (newPos.x / boundaryDistance) * gameRadius,
+          y: (newPos.y / boundaryDistance) * gameRadius,
         }
-      : gamePos;
+      : newPos;
 
-    // Only update if position changed significantly (reduce unnecessary DB calls)
-    const dx = constrainedPos.x - lastPositionRef.current.x;
-    const dy = constrainedPos.y - lastPositionRef.current.y;
-    const moveDistance = Math.sqrt(dx * dx + dy * dy);
-    
-    if (moveDistance > 5) { // Only update if moved more than 5 pixels
+    // Throttle database updates
+    const now = Date.now();
+    if (now - lastUpdateRef.current >= THROTTLE_MS) {
+      lastUpdateRef.current = now;
       lastPositionRef.current = constrainedPos;
       
       // Update position in database
@@ -93,8 +102,11 @@ export function GameCanvas({
         playerId: currentPlayerId as Id<'players'>, 
         position: constrainedPos 
       });
+    } else {
+      // Update local position immediately for smooth movement
+      lastPositionRef.current = constrainedPos;
     }
-  }, [gameStatus, gameId, gameRadius, canvasToGame, updatePosition, currentPlayerId, THROTTLE_MS]);
+  }, [gameStatus, gameId, gameRadius, canvasToGame, updatePosition, currentPlayerId, THROTTLE_MS, MAX_SPEED]);
 
   // Render the game
   useEffect(() => {

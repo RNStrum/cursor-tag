@@ -35,6 +35,7 @@ function GameView({ gameId, initialPlayerId }: { gameId: Id<'games'>, initialPla
   const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(initialPlayerId || null);
   const [playerName, setPlayerName] = useState("");
   const joinGame = useMutation(api.games.joinGame);
+  const restartGame = useMutation(api.games.restartGame);
 
   // Check if user is already in the game (from URL playerId or existing player)
   const isPlayerInGame = currentPlayerId && game?.players.some(p => p._id === currentPlayerId);
@@ -69,6 +70,16 @@ function GameView({ gameId, initialPlayerId }: { gameId: Id<'games'>, initialPla
     }
   };
 
+  const handleRestartGame = async () => {
+    try {
+      await restartGame({ gameId });
+      await refetch();
+    } catch (error) {
+      console.error("Failed to restart game:", error);
+      alert("Failed to restart game.");
+    }
+  };
+
   if (!game) {
     return (
       <div className="text-center">
@@ -91,8 +102,14 @@ function GameView({ gameId, initialPlayerId }: { gameId: Id<'games'>, initialPla
         <h1 className="text-3xl font-bold">2D Tag Game</h1>
         
         {game.status === 'playing' && (
-          <div className="text-xl font-mono mt-2">
-            Time: {formatTime(gameTime)}
+          <div className="text-xl font-mono mt-2 text-blue-600">
+            ⏱️ Time: {formatTime(gameTime)}
+          </div>
+        )}
+        
+        {game.status === 'finished' && game.startTime && game.endTime && (
+          <div className="text-xl font-mono mt-2 text-green-600">
+            🏁 Final Time: {formatTime(game.endTime - game.startTime)}
           </div>
         )}
         
@@ -156,9 +173,17 @@ function GameView({ gameId, initialPlayerId }: { gameId: Id<'games'>, initialPla
       )}
 
       {game.status === 'finished' && (
-        <div className="text-center">
+        <div className="text-center space-y-4">
           <p className="text-xl font-bold text-green-600">Game Over!</p>
           <p className="text-sm text-gray-600">The "It" player caught the runner!</p>
+          {isPlayerInGame && (
+            <button 
+              className="btn btn-primary btn-lg"
+              onClick={handleRestartGame}
+            >
+              🔄 Restart Game
+            </button>
+          )}
         </div>
       )}
 
