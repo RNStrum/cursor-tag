@@ -40,7 +40,8 @@ function GameView({ gameId, initialPlayerId }: { gameId: Id<'games'>, initialPla
   const isPlayerInGame = currentPlayerId && game?.players.some(p => p._id === currentPlayerId);
   
   // Get the actual player ID to use (either from state or find in game players)
-  const activePlayerId = currentPlayerId || (game?.players.length === 1 && !initialPlayerId ? game.players[0]._id : undefined);
+  // If no currentPlayerId but game has 2 players and we have no initialPlayerId, we're likely a spectator
+  const activePlayerId = currentPlayerId;
 
   // Timer effect
   useEffect(() => {
@@ -109,6 +110,11 @@ function GameView({ gameId, initialPlayerId }: { gameId: Id<'games'>, initialPla
               </div>
             ))}
           </div>
+          
+          {/* Debug info */}
+          <div className="text-xs text-gray-500 mt-2">
+            Status: {game.status} | Players: {game.players.length} | Current Player ID: {currentPlayerId || 'none'}
+          </div>
         </div>
       </div>
 
@@ -139,6 +145,20 @@ function GameView({ gameId, initialPlayerId }: { gameId: Id<'games'>, initialPla
               Join Game
             </button>
           </div>
+        </div>
+      )}
+
+      {game.status === 'playing' && !isPlayerInGame && (
+        <div className="text-center">
+          <p className="text-lg font-semibold text-green-600">Game in Progress</p>
+          <p className="text-sm text-gray-600">You are spectating this game.</p>
+        </div>
+      )}
+
+      {game.status === 'finished' && (
+        <div className="text-center">
+          <p className="text-xl font-bold text-green-600">Game Over!</p>
+          <p className="text-sm text-gray-600">The "It" player caught the runner!</p>
         </div>
       )}
 
