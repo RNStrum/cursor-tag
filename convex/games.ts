@@ -18,11 +18,11 @@ export const createGame = mutation({
       .unique();
 
     if (!userDoc) {
-      userDoc = await ctx.db.insert("users", {
+      const userId = await ctx.db.insert("users", {
         clerkId: user.subject,
         name: user.name || "Anonymous",
       });
-      userDoc = await ctx.db.get(userDoc)!;
+      userDoc = (await ctx.db.get(userId))!;
     }
 
     // Create the game
@@ -65,11 +65,11 @@ export const joinGame = mutation({
       .unique();
 
     if (!userDoc) {
-      userDoc = await ctx.db.insert("users", {
+      const userId = await ctx.db.insert("users", {
         clerkId: user.subject,
         name: user.name || "Anonymous",
       });
-      userDoc = await ctx.db.get(userDoc)!;
+      userDoc = (await ctx.db.get(userId))!;
     }
 
     // Check if already in game
