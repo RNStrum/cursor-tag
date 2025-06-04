@@ -29,7 +29,7 @@ function GameView({ gameId, initialPlayerId }: { gameId: Id<'games'>, initialPla
   const gameQueryOptions = convexQuery(api.games.getGame, { gameId });
   const { data: game, refetch } = useSuspenseQuery({
     ...gameQueryOptions,
-    refetchInterval: 100, // Refetch every 100ms for real-time updates
+    refetchInterval: 1000, // Refetch every 1 second for game state updates
   });
   const [gameTime, setGameTime] = useState(0);
   const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(initialPlayerId || null);

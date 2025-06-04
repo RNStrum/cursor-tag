@@ -37,6 +37,7 @@ Working through the project:init-app command to help user set up their new appli
 - eaa3184: feat: implement core 2D tag game with Convex backend, game canvas, and multiplayer lobby
 - 4e5c8e4: test: verify servers running and authentication working, update implementation notes
 - 220687f: fix: remove authentication requirement and optimize performance with throttled updates
+- d079b36: fix: improve multiplayer join with real-time updates and better player state tracking
 
 ### Implementation Summary:
 ✅ **Backend (Convex):**
@@ -80,6 +81,12 @@ Working through the project:init-app command to help user set up their new appli
    - Reduced database calls
    - Smoother mouse movement
    - Better real-time synchronization
+
+3. **Multiplayer Join Fix (Latest):**
+   - Added real-time query updates (100ms refetch interval)
+   - Improved player state tracking and validation
+   - Fixed join form visibility logic
+   - Better handling of game state transitions from "waiting" to "playing"
 
 ## Important Notes:
 - Template includes: React + Vite + TanStack Router (frontend), Convex (backend), Clerk (auth)

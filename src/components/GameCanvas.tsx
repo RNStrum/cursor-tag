@@ -29,13 +29,14 @@ export function GameCanvas({
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const updatePosition = useMutation(api.games.updatePosition);
   const lastUpdateRef = useRef(0);
+  const lastPositionRef = useRef({ x: 0, y: 0 });
   
   const canvasSize = 600;
   const scale = canvasSize / (gameRadius * 2);
   const playerRadius = 20;
   
-  // Throttle updates to 60 FPS max (16ms)
-  const THROTTLE_MS = 16;
+  // Throttle updates to 20 FPS (50ms) to reduce lag
+  const THROTTLE_MS = 50;
 
   // Convert game coordinates to canvas coordinates
   const gameToCanvas = useCallback((gameX: number, gameY: number) => {
@@ -81,12 +82,21 @@ export function GameCanvas({
 
     setMousePosition(constrainedPos);
     
-    // Update position in database
-    updatePosition({ 
-      gameId, 
-      playerId: currentPlayerId as Id<'players'>, 
-      position: constrainedPos 
-    });
+    // Only update if position changed significantly (reduce unnecessary DB calls)
+    const dx = constrainedPos.x - lastPositionRef.current.x;
+    const dy = constrainedPos.y - lastPositionRef.current.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    if (distance > 5) { // Only update if moved more than 5 pixels
+      lastPositionRef.current = constrainedPos;
+      
+      // Update position in database
+      updatePosition({ 
+        gameId, 
+        playerId: currentPlayerId as Id<'players'>, 
+        position: constrainedPos 
+      });
+    }
   }, [gameStatus, gameId, gameRadius, canvasToGame, updatePosition, currentPlayerId, THROTTLE_MS]);
 
   // Render the game
