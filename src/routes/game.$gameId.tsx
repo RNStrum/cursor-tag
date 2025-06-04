@@ -27,11 +27,20 @@ function GamePage() {
 
 function GameView({ gameId, initialPlayerId }: { gameId: Id<'games'>, initialPlayerId?: string }) {
   const gameQueryOptions = convexQuery(api.games.getGame, { gameId });
-  const { data: game } = useSuspenseQuery(gameQueryOptions);
+  const { data: game, refetch } = useSuspenseQuery({
+    ...gameQueryOptions,
+    refetchInterval: 100, // Refetch every 100ms for real-time updates
+  });
   const [gameTime, setGameTime] = useState(0);
   const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(initialPlayerId || null);
   const [playerName, setPlayerName] = useState("");
   const joinGame = useMutation(api.games.joinGame);
+
+  // Check if user is already in the game (from URL playerId or existing player)
+  const isPlayerInGame = currentPlayerId && game?.players.some(p => p._id === currentPlayerId);
+  
+  // Get the actual player ID to use (either from state or find in game players)
+  const activePlayerId = currentPlayerId || (game?.players.length === 1 && !initialPlayerId ? game.players[0]._id : undefined);
 
   // Timer effect
   useEffect(() => {
@@ -51,6 +60,8 @@ function GameView({ gameId, initialPlayerId }: { gameId: Id<'games'>, initialPla
         playerName: playerName.trim() || undefined 
       });
       setCurrentPlayerId(playerId);
+      // Force refetch to get updated game state
+      await refetch();
     } catch (error) {
       console.error("Failed to join game:", error);
       alert("Failed to join game. The game might be full or already started.");
@@ -106,10 +117,10 @@ function GameView({ gameId, initialPlayerId }: { gameId: Id<'games'>, initialPla
         gameRadius={game.gameRadius}
         players={game.players}
         gameStatus={game.status}
-        currentPlayerId={currentPlayerId || undefined}
+        currentPlayerId={activePlayerId}
       />
 
-      {game.status === 'waiting' && game.players.length < 2 && !currentPlayerId && (
+      {game.status === 'waiting' && game.players.length < 2 && !isPlayerInGame && (
         <div className="text-center space-y-4">
           <h3 className="text-xl font-semibold">Join this game</h3>
           <div className="max-w-sm mx-auto space-y-2">
