@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
@@ -26,7 +26,6 @@ export function GameCanvas({
   currentPlayerId 
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const updatePosition = useMutation(api.games.updatePosition);
   const lastUpdateRef = useRef(0);
   const lastPositionRef = useRef({ x: 0, y: 0 });
@@ -80,8 +79,6 @@ export function GameCanvas({
         }
       : gamePos;
 
-    setMousePosition(constrainedPos);
-    
     // Only update if position changed significantly (reduce unnecessary DB calls)
     const dx = constrainedPos.x - lastPositionRef.current.x;
     const dy = constrainedPos.y - lastPositionRef.current.y;
